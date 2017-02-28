@@ -1,4 +1,25 @@
-.slash-menu {
+
+#slash-menu-newline {
+    position: absolute;
+    align-items: center;
+    text-align: center;
+    color: color(var(--lightgrey) l(-10%));
+    background: linear-gradient(
+        color(var(--darkgrey) l(-3%)),
+        color(var(--darkgrey) l(-8%))
+    );
+    border-radius: 5px;
+
+    height: 40px;
+    width: 40px;
+    font-size: 1.6rem;
+    line-height: 40px;
+    transition: text-shadow 0.3s ease;
+}
+
+
+
+#slash-menu {
     border:1px solid var(--darkgrey);
     position:absolute;
     background-color: #fff;
@@ -7,16 +28,17 @@
     box-shadow: rbga(0,0,0,0.10) 0 2px 6px;
     min-width:300px;
     border-radius: 4px;
+    display:none;
 }
-.slash-menu.is-visible {
+#slash-menu.is-visible {
     animation: slash-menu-fadein 111ms;
 }
-.slash-menu ul {
+#slash-menu ul {
     margin:0;
     padding:0;
     list-style: none;
 }
-.slash-menu ul li button {
+#slash-menu ul li button {
     padding:5px;
     width:100%;
     text-align: left;
@@ -24,11 +46,11 @@
     border-radius: 4px;
 }
 
-.slash-menu ul li button img {
+#slash-menu ul li button img {
     width:14px;
 }
 
-.slash-menu ul li button:hover, .slash-menu ul li button.selected {
+#slash-menu ul li button:hover, .slash-menu ul li button.selected {
     background-color: var(--darkgrey);
 
 }
