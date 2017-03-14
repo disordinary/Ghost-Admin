@@ -12,7 +12,7 @@ import {invalidateSession, authenticateSession} from 'ghost-admin/tests/helpers/
 import Mirage from 'ember-cli-mirage';
 import sinon from 'sinon';
 import testSelector from 'ember-test-selectors';
-
+import {titleRendered} from '../helpers/editor-helpers';
 describe('Acceptance: Editor', function() {
     let application;
 
@@ -25,7 +25,7 @@ describe('Acceptance: Editor', function() {
     });
 
     it('redirects to signin when not authenticated', function () {
-        server.create('user'); // necessray for post-author association
+        server.create('user'); // necesary for post-author association
         server.create('post');
 
         invalidateSession(application);
@@ -397,10 +397,18 @@ describe('Acceptance: Editor', function() {
                     .to.equal('/editor/1');
             });
 
-            // Test title validation
-            fillIn('input[id="entry-title"]', Array(160).join('a'));
-            triggerEvent('input[id="entry-title"]', 'blur');
-            click('.gh-btn.gh-btn-sm.js-publish-button');
+            andThen(() => {
+                titleRendered();
+            });
+
+            andThen(() => {
+                let title = find('#gh-title div');
+                title.html(Array(160).join('a'));
+            });
+
+            andThen(() => {
+                click('.gh-btn.gh-btn-sm.js-publish-button');
+            });
 
             andThen(() => {
                 expect(
@@ -506,5 +514,31 @@ describe('Acceptance: Editor', function() {
             });
         });
 
+        it('shows author list and allows switching of author in PSM', function () {
+            server.create('post', {authorId: 1});
+            let role = server.create('role', {name: 'Author'});
+            let author = server.create('user', {name: 'Waldo', roles: [role]});
+
+            visit('/editor/1');
+
+            andThen(() => {
+                expect(currentURL(), 'currentURL')
+                    .to.equal('/editor/1');
+            });
+
+            click('button.post-settings');
+
+            andThen(() => {
+                expect(find('select[name="post-setting-author"]').val()).to.equal('1');
+                expect(find('select[name="post-setting-author"] option[value="2"]')).to.be.ok;
+            });
+
+            fillIn('select[name="post-setting-author"]', '2');
+
+            andThen(() => {
+                expect(find('select[name="post-setting-author"]').val()).to.equal('2');
+                expect(server.db.posts[0].authorId).to.equal(author.id);
+            });
+        });
     });
 });
