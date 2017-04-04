@@ -52,7 +52,8 @@ export default Mixin.create({
     toolbar: [], // for apps
     apiRoot: ghostPaths().apiRoot,
     assetPath: ghostPaths().assetRoot,
-
+    editor: null,
+    title: null,
     init() {
         this._super(...arguments);
         window.onbeforeunload = () => {
@@ -563,6 +564,10 @@ export default Mixin.create({
 
         toggleReAuthenticateModal() {
             this.toggleProperty('showReAuthenticateModal');
+        },
+
+        setEditor(editor) {
+            this.set('editor', editor);
         }
     }
 });
