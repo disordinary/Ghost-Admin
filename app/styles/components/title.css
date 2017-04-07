@@ -8,17 +8,19 @@
     font-weight: bold;
     font-size: 3.2rem;
     line-height: 150%;
+    z-index:1;
 }
 
 /* Place holder content that displays in the title if it is empty */
-.gh-editor-title.no-content:after {
+.gh-editor-title.no-content:before {
     content: attr(data-placeholder);
     color: #bbb;
     cursor: text;
-    position:absolute;
+    position:relative;
     top:0;
     font-size: 3.2rem;
     font-weight: bold;
-    line-height: 110%;
+    line-height: 150%;
     min-width: 30rem; /* hack it's defaulting just to enough width for the 'Your' in 'Your Post Title' */
+    z-index:-1;
 }
