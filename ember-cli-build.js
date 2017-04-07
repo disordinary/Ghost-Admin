@@ -105,7 +105,8 @@ module.exports = function (defaults) {
                 js: assetLocation('ghost.js'),
                 css: {
                     app: assetLocation('ghost.css'),
-                    'app-dark': assetLocation('ghost-dark.css')
+                    // TODO: find a way to use the .min file with the lazyLoader
+                    'app-dark': 'assets/ghost-dark.css'
                 }
             },
             vendor: {
@@ -119,7 +120,10 @@ module.exports = function (defaults) {
                 plugins: postcssPlugins()
             }
         },
-        fingerprint: {enabled: true},
+        fingerprint: {
+            enabled: true,
+            extensions: ['js', 'css', 'png', 'jpg', 'jpeg', 'gif', 'map']
+        },
         nodeAssets: {
             'blueimp-md5': {
                 import: ['js/md5.js']
@@ -130,12 +134,6 @@ module.exports = function (defaults) {
             },
             'mobiledoc-kit': {
                 import: ['dist/amd/mobiledoc-kit.js', 'dist/amd/mobiledoc-kit.map']
-            },
-            moment: {
-                import: ['moment.js']
-            },
-            'moment-timezone': {
-                import: ['builds/moment-timezone-with-data.js']
             },
             'password-generator': {
                 import: ['lib/password-generator.js']

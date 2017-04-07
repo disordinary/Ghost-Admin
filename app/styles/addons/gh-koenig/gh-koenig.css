@@ -87,7 +87,7 @@
 }
 
 
-.kg-card:hover .kg-card-toolbar, .kg-card.selected .kg-card-toolbar {
+.kg-card.selected .kg-card-toolbar {
     display: flex;
     align-items: stretch;
     justify-content: space-around;
@@ -171,13 +171,15 @@ textarea.ed_code {
     border: none;
 }
 
+.dragOver {
+    background-color: var(--lightgrey);
+}
+
 
 
 /**
  * Tooltip
  */
-
-
 @keyframes tooltip-fadein {
     0% { opacity: 0; }
     100% { opacity: 1; }
