@@ -77,13 +77,13 @@ export default Component.extend({
                 let cursorPositionOnScreen = range.getBoundingClientRect();
 
                 // in safari getBoundingClientRect on a range does not work if the range is collapsed.
-                if (cursorPositionOnScreen.bottom === 0) {
+                if (!cursorPositionOnScreen || cursorPositionOnScreen.bottom === 0) {
                     cursorPositionOnScreen = range.getClientRects()[0];
                 }
 
                 let offset = title.offset();
                 let bottomOfHeading =  offset.top + title.height();
-                if (cursorPositionOnScreen.bottom > bottomOfHeading - 13) {
+                if (cursorPositionOnScreen && cursorPositionOnScreen.bottom > bottomOfHeading - 13) {
                     let editor = this.get('editor');
                     let loc = editor.element.getBoundingClientRect();
 
@@ -211,7 +211,7 @@ export default Component.extend({
         title.focus();
         let selection = window.getSelection();
 
-        window.requestAnimationFrame(() => {
+        run.next(() => {
             run.join(() => {
                 if (selection.modify) {
                     for (let i = 0; i < offset; i++) {

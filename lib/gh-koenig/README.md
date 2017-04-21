@@ -17,15 +17,6 @@ To us it seemed like the best compromise between a feature rich WYSIWYG editor a
  
 Like Ghost, Mobiledoc-kit is still moving towards its 1.0 release - it still has some bugs, but we're working together to make something really fun. 
 
-## To try it out:
-
-- clone this repo
-- `cd gh-koenig`
-- `npm install && bower install`
-- `ember serve`
-- Visit `http://localhost:4200`
-- Click in the middle to activate the editor
-
 ## If you want to help out:
 
 - Create an issue on the main Ghost repository [https://github.com/TryGhost/Ghost/issues](https://github.com/TryGhost/Ghost/issues).
@@ -33,6 +24,12 @@ Like Ghost, Mobiledoc-kit is still moving towards its 1.0 release - it still has
 - Submit a PR.
 
 A fantastic guide on the Ghost workflow is here: https://github.com/TryGhost/Ghost/wiki/Git-workflow, it's well worth a read.
+
+## Notes on development.
+
+The unit tests for this in-repo-addon are in the `/lib/gh-koenig/test-support` directory.
+
+The acceptance and integration tests are in the `/tests/acceptance/` and `/tests/integration` respectively.
 
 ## Some features of the editor.
 
