@@ -12,7 +12,7 @@ import {invalidateSession, authenticateSession} from 'ghost-admin/tests/helpers/
 import Mirage from 'ember-cli-mirage';
 import sinon from 'sinon';
 import testSelector from 'ember-test-selectors';
-import {titleRendered} from '../helpers/editor-helpers';
+import {titleRendered, timeoutPromise, testInput} from '../helpers/editor-helpers';
 import moment from 'moment';
 
 describe('Acceptance: Editor', function() {
@@ -348,7 +348,42 @@ describe('Acceptance: Editor', function() {
             expect(title.hasClass('no-content')).to.be.false;
         });
 
-        it('renders first countdown notification before scheduled time', async function () {
+        it('title navigates to content', function () {
+            server.createList('post', 1);
+
+            // post id 1 is a draft, checking for draft behaviour now
+            visit('/editor/1');
+
+            andThen(() => {
+                expect(currentURL(), 'currentURL')
+                    .to.equal('/editor/1');
+            });
+
+            andThen(() => {
+                titleRendered();
+            });
+
+            andThen(() => {
+                let title = find('#gh-editor-title div');
+                title.html('When there\'s something strange in your neighbourhood.');
+                return testInput('Who you gonna call?', '<p>Who you gonna call?</p>', expect);
+            });
+
+            andThen(() => {
+                title.focus();
+                keyEvent('#gh-editor-title div', 'keydown', 40);
+                return timeoutPromise(2000);
+            });
+
+            andThen(() => {
+                let range = window.getSelection().getRangeAt(0);
+                console.log(range.startContainer);
+                expect('true').to.be.false;
+            });
+        });
+
+        it('renders first countdown notification before scheduled time', function () {
+
             let clock = sinon.useFakeTimers(moment().valueOf());
             let compareDate = moment().tz('Etc/UTC').add(4, 'minutes');
             let compareDateString = compareDate.format('MM/DD/YYYY');

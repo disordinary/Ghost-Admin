@@ -70,7 +70,7 @@ describe('Integration: Component: gh-koenig-slashmenu', function () {
             });
     });
 
-    it.skip('ul tool', function (done) {
+    it('clicking on the UL tool creates a list', function (done) {
         this.set('editorMenuIsOpen', function () {});
         this.set('editorMenuIsClosed', function () {});
 
@@ -99,14 +99,11 @@ describe('Integration: Component: gh-koenig-slashmenu', function () {
             })
             .then(() => {
                 $('.gh-cardmenu-card').click();
+            })
+            .then(() => {
+                expect(window.editor.element.innerHTML)
+                .to.equal('<ul><li>&nbsp;bul</li></ul>');
                 done();
             });
-            // .then(() => {
-            //
-            // })
-            // .then(() => {
-            //     console.log(editor.element.innerHTML);
-            //     done();
-            // });
     });
 });

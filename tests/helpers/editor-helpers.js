@@ -74,9 +74,10 @@ export function waitForRender(selector) {
     let isRejected = false;
     return Ember.Test.promise(function (resolve, reject) { // eslint-disable-line
         let rejectTimeout = window.setTimeout(() => {
+            console.log($('.editor-holder')[0].outerHTML);
             reject('element didn\'t render');
             isRejected = true;
-        }, 1500);
+        }, 300);
 
         function checkIsRendered() {
             if ($(selector)[0] && !isRejected) {
