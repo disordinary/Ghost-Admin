@@ -12,7 +12,7 @@ import {invalidateSession, authenticateSession} from 'ghost-admin/tests/helpers/
 import Mirage from 'ember-cli-mirage';
 import sinon from 'sinon';
 import testSelector from 'ember-test-selectors';
-import {titleRendered} from '../helpers/editor-helpers';
+import {titleRendered, replaceTitleHTML} from '../helpers/editor-helpers';
 import moment from 'moment';
 
 describe('Acceptance: Editor', function() {
@@ -258,11 +258,9 @@ describe('Acceptance: Editor', function() {
                 'scheduled status text'
             ).to.equal('Scheduled');
 
-            andThen(() => {
-                // expect countdown to show warning, that post will be published in x minutes
-                expect(find(testSelector('schedule-countdown')).text().trim(), 'notification countdown')
-                    .to.contain('Post will be published in');
-            });
+            // expect countdown to show warning, that post will be published in x minutes
+            expect(find(testSelector('schedule-countdown')).text().trim(), 'notification countdown')
+                .to.contain('Post will be published in');
 
             // unschedule
             await click(testSelector('publishmenu-trigger'));
@@ -347,7 +345,7 @@ describe('Acceptance: Editor', function() {
             ).to.match(/Title cannot be longer than 150 characters/);
         });
 
-        it('if title is blank it correctly shows the placeholder', async function () {
+        it('inserts a placeholder if the title is blank', async function () {
             server.createList('post', 1);
 
             // post id 1 is a draft, checking for draft behaviour now
@@ -367,6 +365,22 @@ describe('Acceptance: Editor', function() {
             await title.html('test');
 
             expect(title.hasClass('no-content')).to.be.false;
+        });
+
+        it('removes HTML from the title.', async function () {
+            server.createList('post', 1);
+
+            // post id 1 is a draft, checking for draft behaviour now
+            await visit('/editor/1');
+
+            expect(currentURL(), 'currentURL')
+                .to.equal('/editor/1');
+
+            titleRendered();
+
+            let title = find('#gh-editor-title div');
+            await replaceTitleHTML('<div>TITLE&nbsp;&#09;&nbsp;&thinsp;&ensp;&emsp;TEST</div>&nbsp;');
+            expect(title.html()).to.equal('TITLE      TEST ');
         });
 
         it('renders first countdown notification before scheduled time', async function () {

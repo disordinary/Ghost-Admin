@@ -156,17 +156,17 @@ export default Controller.extend(ValidationEngine, {
             return this.get('session.user').then((user) => {
                 return new Promise((resolve, reject) => {
                     image.formData = {};
-                    image.submit()
-                        .success((response) => {
+                    return image.submit()
+                        .done((response) => {
                             let usersUrl = this.get('ghostPaths.url').api('users', user.id.toString());
                             user.image = response;
-                            this.get('ajax').put(usersUrl, {
+                            return this.get('ajax').put(usersUrl, {
                                 data: {
                                     users: [user]
                                 }
                             }).then(resolve).catch(reject);
                         })
-                        .error(reject);
+                        .fail(reject);
                 });
             });
         }
@@ -178,7 +178,7 @@ export default Controller.extend(ValidationEngine, {
         },
 
         setImage(image) {
-            this.set('image', image);
+            this.set('profileImage', image);
         }
     }
 });
