@@ -21,7 +21,7 @@
 }
 
 .subscribers-table th {
-    padding: 8px 0;
+    padding: 8px 0 15px;
 }
 
 .subscribers-table td {
@@ -31,6 +31,11 @@
 
 .subscribers-table table .gh-btn {
     visibility: hidden;
+}
+
+.subscribers-table table .gh-btn svg {
+    height: 13px;
+    width: auto;
 }
 
 .subscribers-table table tr:hover .gh-btn {

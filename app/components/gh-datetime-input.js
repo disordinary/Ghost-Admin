@@ -3,10 +3,11 @@ import injectService from 'ember-service/inject';
 import boundOneWay from 'ghost-admin/utils/bound-one-way';
 import {formatDate} from 'ghost-admin/utils/date-formatting';
 import {InvokeActionMixin} from 'ember-invoke-action';
+import moment from 'moment';
 
 export default Component.extend(InvokeActionMixin, {
     tagName: 'span',
-    classNames: 'input-icon icon-calendar',
+    classNames: 'gh-input-icon gh-icon-calendar',
 
     datetime: boundOneWay('value'),
     inputClass: null,

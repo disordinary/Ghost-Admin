@@ -2,7 +2,7 @@
     <header class="gh-canvas-header">
         <h2 class="gh-canvas-title">General</h2>
         <section class="view-actions">
-            {{gh-task-button "Save settings" task=save class="gh-btn gh-btn-blue" data-test-save-button=true}}
+            {{gh-task-button "Save settings" task=save class="gh-btn gh-btn-blue gh-btn-icon" data-test-save-button=true}}
         </section>
     </header>
 
@@ -98,15 +98,15 @@
                 <div class="gh-setting-desc">An optional large background image for your site</div>
             </div>
             <div class="gh-setting-action gh-setting-action-largeimg">
-                {{#if model.cover}}
-                    <img class="blog-cover" src="{{model.cover}}" alt="cover photo" role="button" {{action "toggleUploadCoverModal"}}>
+                {{#if model.coverImage}}
+                    <img class="blog-cover" src="{{model.coverImage}}" alt="cover photo" role="button" {{action "toggleUploadCoverModal"}}>
                 {{else}}
                     <button type="button" class="gh-btn" {{action "toggleUploadCoverModal"}}><span>Upload Image</span></button>
                 {{/if}}
 
                 {{#if showUploadCoverModal}}
                     {{gh-fullscreen-modal "upload-image"
-                            model=(hash model=model imageProperty="cover")
+                            model=(hash model=model imageProperty="coverImage")
                             close=(action "toggleUploadCoverModal")
                             modifier="action wide"}}
                 {{/if}}
@@ -145,8 +145,12 @@
                 <div class="gh-setting-desc">Include the date in your post URLs, eg. <strong>blogurl.com/2017/01/post-title/</strong></div>
             </div>
             <div class="gh-setting-action">
-                {{one-way-checkbox isDatedPermalinks type="checkbox" update=(action (mut isDatedPermalinks)) data-test-dated-permalinks-checkbox=true}}
-                <span class="input-toggle-component"></span>
+                <div class="for-checkbox">
+                    <label class="checkbox" for="settings-dated-permalinks">
+                        {{one-way-checkbox isDatedPermalinks id="settings-dated-permalinks" type="checkbox" update=(action (mut isDatedPermalinks)) data-test-dated-permalinks-checkbox=true}}
+                        <span class="input-toggle-component"></span>
+                    </label>
+                </div>
             </div>
         </div>
         <div class="gh-setting">
@@ -164,8 +168,12 @@
                 {{/if}}
             </div>
             <div class="gh-setting-action">
-                {{one-way-checkbox model.isPrivate type="checkbox" update=(action (mut model.isPrivate)) data-test-private-checkbox=true}}
-                <span class="input-toggle-component"></span>
+                <div class="for-checkbox">
+                    <label class="checkbox" for="settings-private">
+                        {{one-way-checkbox model.isPrivate id="settings-private" type="checkbox" update=(action (mut model.isPrivate)) data-test-private-checkbox=true}}
+                        <span class="input-toggle-component"></span>
+                    </label>
+                </div>
             </div>
         </div>
 

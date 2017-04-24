@@ -1,5 +1,9 @@
 import Ember from 'ember';
 import $ from 'jquery';
+import run from 'ember-runloop';
+import wait from 'ember-test-helpers/wait';
+import {findWithAssert} from 'ember-native-dom-helpers';
+
 // polls the editor until it's started.
 export function editorRendered() {
     return Ember.Test.promise(function (resolve) { // eslint-disable-line
@@ -27,6 +31,14 @@ export function titleRendered() {
         }
         checkTitle();
     });
+}
+
+// replaces the title text content with HTML and returns once the HTML has been placed.
+// takes into account converting to plaintext.
+export function replaceTitleHTML(HTML) {
+    let el = findWithAssert('#gh-editor-title div');
+    run(() => el.innerHTML = HTML);
+    return (window.wait || wait)();
 }
 
 // simulates text inputs into the editor, unfortunately the helper Ember helper functions
@@ -59,6 +71,17 @@ export function testInput(input, output, expect) {
     });
 }
 
+export function testInputTimeout(input) {
+    window.editor.element.focus();
+    return Ember.Test.promise(function (resolve, reject) { // eslint-disable-line
+        window.setTimeout(() => {
+            resolve(window.editor.element.innerHTML);
+        }, 300);
+
+        inputText(window.editor, input);
+    });
+}
+
 export function waitForRender(selector) {
     let isRejected = false;
     return Ember.Test.promise(function (resolve, reject) { // eslint-disable-line
@@ -76,5 +99,13 @@ export function waitForRender(selector) {
             }
         }
         checkIsRendered();
+    });
+}
+
+export function timeoutPromise(timeout) {
+    return Ember.Test.promise(function (resolve) { // eslint-disable-line
+        window.setTimeout(() => {
+            resolve();
+        }, timeout);
     });
 }

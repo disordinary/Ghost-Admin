@@ -1,7 +1,7 @@
 <header class="modal-header">
     <h1>Invite a New User</h1>
 </header>
-<a class="close icon-x" href="" title="Close" {{action "closeModal"}}><span class="hidden">Close</span></a>
+<a class="close" href="" title="Close" {{action "closeModal"}}>{{inline-svg "close"}}<span class="hidden">Close</span></a>
 
 <div class="modal-body">
     <fieldset>
@@ -36,11 +36,12 @@
                     value=role
                     update=(action "setRole")
                 }}
+                {{inline-svg "arrow-down-small"}}
             </span>
         </div>
     </fieldset>
 </div>
 
 <div class="modal-footer">
-    {{gh-task-button "Send invitation now" successText="Sent" task=sendInvitation class="gh-btn gh-btn-green"}}
+    {{gh-task-button "Send invitation now" successText="Sent" task=sendInvitation class="gh-btn gh-btn-green gh-btn-icon"}}
 </div>

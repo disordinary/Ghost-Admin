@@ -3,22 +3,22 @@ import {describe, it} from 'mocha';
 import {setupComponentTest} from 'ember-mocha';
 import hbs from 'htmlbars-inline-precompile';
 
-describe('Integration | Component | gh title', function() {
-    setupComponentTest('gh-editor-title', {
+describe('Integration: Component: gh-publishmenu-draft', function() {
+    setupComponentTest('gh-publishmenu-draft', {
         integration: true
     });
 
-    it('renders', function() {
+    it.skip('renders', function() {
         // Set any properties with this.set('myProperty', 'value');
         // Handle any actions with this.on('myAction', function(val) { ... });
         // Template block usage:
         // this.render(hbs`
-        //   {{#gh-editor-title}}
+        //   {{#gh-publishmenu-draft}}
         //     template content
-        //   {{/gh-editor-title}}
+        //   {{/gh-publishmenu-draft}}
         // `);
 
-        this.render(hbs`{{gh-editor-title}}`);
+        this.render(hbs`{{gh-publishmenu-draft}}`);
         expect(this.$()).to.have.length(1);
     });
 });

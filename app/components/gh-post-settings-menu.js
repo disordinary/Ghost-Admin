@@ -4,13 +4,11 @@ import computed, {alias} from 'ember-computed';
 import {guidFor} from 'ember-metal/utils';
 import injectService from 'ember-service/inject';
 import {htmlSafe} from 'ember-string';
-
 import {invokeAction} from 'ember-invoke-action';
-
-import {parseDateString} from 'ghost-admin/utils/date-formatting';
 import SettingsMenuMixin from 'ghost-admin/mixins/settings-menu-component';
 import boundOneWay from 'ghost-admin/utils/bound-one-way';
 import isNumber from 'ghost-admin/utils/isNumber';
+import moment from 'moment';
 
 const {Handlebars} = Ember;
 
@@ -26,9 +24,12 @@ export default Component.extend(SettingsMenuMixin, {
     session: injectService(),
     settings: injectService(),
 
+    model: null,
     slugValue: boundOneWay('model.slug'),
     metaTitleScratch: alias('model.metaTitleScratch'),
     metaDescriptionScratch: alias('model.metaDescriptionScratch'),
+
+    _showSettingsMenu: false,
 
     didReceiveAttrs() {
         this._super(...arguments);
@@ -40,6 +41,19 @@ export default Component.extend(SettingsMenuMixin, {
         this.get('model.author').then((author) => {
             this.set('selectedAuthor', author);
         });
+
+        // reset the publish date on close if it has an error
+        if (!this.get('showSettingsMenu') && this._showSettingsMenu) {
+            let post = this.get('model');
+            let errors = post.get('errors');
+
+            if (errors.has('publishedAtBlogDate') || errors.has('publishedAtBlogTime')) {
+                post.set('publishedAtBlogTZ', post.get('publishedAtUTC'));
+                post.validate({attribute: 'publishedAtBlog'});
+            }
+        }
+
+        this._showSettingsMenu = this.get('showSettingsMenu');
     },
 
     seoTitle: computed('model.titleScratch', 'metaTitleScratch', function () {
@@ -212,90 +226,31 @@ export default Component.extend(SettingsMenuMixin, {
             });
         },
 
-        /**
-         * Parse user's set published date.
-         * Action sent by post settings menu view.
-         * (#1351)
-         */
-        setPublishedAtUTC(userInput) {
-            if (!userInput) {
-                // Clear out the publishedAtUTC field for a draft
-                if (this.get('model.isDraft')) {
-                    this.set('model.publishedAtUTC', null);
-                }
-                return;
+        setPublishedAtBlogDate(date) {
+            let post = this.get('model');
+            let dateString = moment(date).format('YYYY-MM-DD');
+
+            post.get('errors').remove('publishedAtBlogDate');
+
+            if (post.get('isNew') || date === post.get('publishedAtBlogDate')) {
+                post.validate({property: 'publishedAtBlog'});
+            } else {
+                post.set('publishedAtBlogDate', dateString);
+                return post.save();
             }
+        },
 
-            // The user inputs a date which he expects to be in his timezone. Therefore, from now on
-            // we have to work with the timezone offset which we get from the settings Service.
-            let blogTimezone = this.get('settings.activeTimezone');
-            let newPublishedAt = parseDateString(userInput, blogTimezone);
-            let publishedAtUTC = moment.utc(this.get('model.publishedAtUTC'));
-            let errMessage = '';
-            let newPublishedAtUTC;
+        setPublishedAtBlogTime(time) {
+            let post = this.get('model');
 
-            // Clear previous errors
-            this.get('model.errors').remove('post-setting-date');
+            post.get('errors').remove('publishedAtBlogDate');
 
-            // Validate new Published date
-            if (!newPublishedAt.isValid()) {
-                errMessage = 'Published Date must be a valid date with format: '
-                           + 'DD MMM YY @ HH:mm (e.g. 6 Dec 14 @ 15:00)';
+            if (post.get('isNew') || time === post.get('publishedAtBlogTime')) {
+                post.validate({property: 'publishedAtBlog'});
+            } else {
+                post.set('publishedAtBlogTime', time);
+                return post.save();
             }
-
-            // Date is a valid date, so now make it UTC
-            newPublishedAtUTC = moment.utc(newPublishedAt);
-
-            if (newPublishedAtUTC.diff(moment.utc(new Date()), 'hours', true) > 0) {
-
-                // We have to check that the time from now is not shorter than 2 minutes,
-                // otherwise we'll have issues with the serverside scheduling procedure
-                if (newPublishedAtUTC.diff(moment.utc(new Date()), 'minutes', true) < 2) {
-                    errMessage = 'Must be at least 2 minutes from now.';
-                } else {
-                    // in case the post is already published and the user sets the date
-                    // afterwards to a future time, we stop here, and he has to unpublish
-                    // his post first
-                    if (this.get('model.isPublished')) {
-                        errMessage = 'Your post is already published.';
-                        // this is the indicator for the different save button layout
-                        this.set('timeScheduled', false);
-                    }
-                    // everything fine, we can start the schedule workflow and change
-                    // the save buttons according to it
-                    this.set('timeScheduled', true);
-                }
-                // if the post is already scheduled and the user changes the date back into the
-                // past, we'll set the status of the post back to draft, so he can start all over
-                // again
-            } else if (this.get('model.isScheduled')) {
-                this.set('model.status', 'draft');
-            }
-
-            // If errors, notify and exit.
-            if (errMessage) {
-                this.get('model.errors').add('post-setting-date', errMessage);
-                return;
-            }
-
-            // Do nothing if the user didn't actually change the date
-            if (publishedAtUTC && publishedAtUTC.isSame(newPublishedAtUTC)) {
-                return;
-            }
-
-            // Validation complete
-            this.set('model.publishedAtUTC', newPublishedAtUTC);
-
-            // If this is a new post.  Don't save the model.  Defer the save
-            // to the user pressing the save button
-            if (this.get('model.isNew')) {
-                return;
-            }
-
-            this.get('model').save().catch((error) => {
-                this.showError(error);
-                this.get('model').rollbackAttributes();
-            });
         },
 
         setMetaTitle(metaTitle) {
@@ -345,7 +300,7 @@ export default Component.extend(SettingsMenuMixin, {
         },
 
         setCoverImage(image) {
-            this.set('model.image', image);
+            this.set('model.featureImage', image);
 
             if (this.get('model.isNew')) {
                 return;
@@ -358,7 +313,7 @@ export default Component.extend(SettingsMenuMixin, {
         },
 
         clearCoverImage() {
-            this.set('model.image', '');
+            this.set('model.featureImage', '');
 
             if (this.get('model.isNew')) {
                 return;
@@ -448,6 +403,12 @@ export default Component.extend(SettingsMenuMixin, {
 
             if (tag.get('isNew')) {
                 tag.destroyRecord();
+            }
+        },
+
+        deletePost() {
+            if (this.get('deletePost')) {
+                this.get('deletePost')();
             }
         }
     }

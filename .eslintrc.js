@@ -1,7 +1,7 @@
 module.exports = {
     root: true,
     parserOptions: {
-        ecmaVersion: 6,
+        ecmaVersion: 8,
         sourceType: 'module'
     },
     extends: [
@@ -23,7 +23,6 @@ module.exports = {
         'ember-suave/require-access-in-comments': 'off'
     },
     globals: {
-        moment: false,
         validator: false
     }
 };

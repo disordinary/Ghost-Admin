@@ -1,7 +1,7 @@
 <header class="modal-header">
     <h1>Are you sure you want to suspend this user?</h1>
 </header>
-<a class="close icon-x" href="" title="Close" {{action "closeModal"}}><span class="hidden">Close</span></a>
+<a class="close" href="" title="Close" {{action "closeModal"}}>{{inline-svg "close"}}<span class="hidden">Close</span></a>
 
 <div class="modal-body">
     <strong>WARNING:</strong> This user will no longer be able to log in but their posts will be kept.
@@ -9,5 +9,5 @@
 
 <div class="modal-footer">
     <button {{action "closeModal"}} class="gh-btn"><span>Cancel</span></button>
-    {{gh-task-button "Suspend" successText="Suspended" task=suspendUser class="gh-btn gh-btn-red" data-test-modal-confirm=true}}
+    {{gh-task-button "Suspend" successText="Suspended" task=suspendUser class="gh-btn gh-btn-red gh-btn-icon" data-test-modal-confirm=true}}
 </div>

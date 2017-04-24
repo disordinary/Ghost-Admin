@@ -3,6 +3,7 @@ import observer from 'ember-metal/observer';
 import computed, {reads} from 'ember-computed';
 import {isBlank} from 'ember-utils';
 import {invokeAction} from 'ember-invoke-action';
+import {task, timeout} from 'ember-concurrency';
 
 /**
  * Task Button works exactly like Spin button, but with one major difference:
@@ -17,22 +18,45 @@ import {invokeAction} from 'ember-invoke-action';
  */
 const GhTaskButton = Component.extend({
     tagName: 'button',
-    classNameBindings: ['isRunning:appear-disabled', 'isSuccessClass', 'isFailureClass'],
+    classNameBindings: [
+        'isRunning:appear-disabled',
+        'isIdleClass',
+        'isRunningClass',
+        'isSuccessClass',
+        'isFailureClass'
+    ],
     attributeBindings: ['disabled', 'type', 'tabindex'],
 
     task: null,
     disabled: false,
     buttonText: 'Save',
     runningText: reads('buttonText'),
+    idleClass: '',
+    runningClass: '',
     successText: 'Saved',
     successClass: 'gh-btn-green',
     failureText: 'Retry',
     failureClass: 'gh-btn-red',
 
+    // hasRun is needed so that a newly rendered button does not show the last
+    // state of the associated task
+    hasRun: false,
     isRunning: reads('task.last.isRunning'),
 
-    isSuccess: computed('isRunning', 'task.last.value', function () {
+    isIdleClass: computed('isIdle', function () {
+        if (this.get('isIdle')) {
+            return this.get('idleClass');
+        }
+    }),
+
+    isRunningClass: computed('isRunning', function () {
         if (this.get('isRunning')) {
+            return this.get('runningClass') || this.get('idleClass');
+        }
+    }),
+
+    isSuccess: computed('hasRun', 'isRunning', 'task.last.value', function () {
+        if (!this.get('hasRun') || this.get('isRunning')) {
             return false;
         }
 
@@ -46,8 +70,8 @@ const GhTaskButton = Component.extend({
         }
     }),
 
-    isFailure: computed('isRunning', 'isSuccess', 'task.last.error', function () {
-        if (this.get('isRunning') || this.get('isSuccess')) {
+    isFailure: computed('hasRun', 'isRunning', 'isSuccess', 'task.last.error', function () {
+        if (!this.get('hasRun') || this.get('isRunning') || this.get('isSuccess')) {
             return false;
         }
 
@@ -84,17 +108,33 @@ const GhTaskButton = Component.extend({
         invokeAction(this, 'action');
         task.perform();
 
+        this.get('_restartAnimation').perform();
+
         // prevent the click from bubbling and triggering form actions
         return false;
     },
 
     setSize: observer('isRunning', function () {
         if (this.get('isRunning')) {
-            this.$().width(this.$().width());
-            this.$().height(this.$().height());
+            this.set('hasRun', true);
+            // this.$().width(this.$().width());
+            // this.$().height(this.$().height());
         } else {
-            this.$().width('');
-            this.$().height('');
+            // this.$().width('');
+            // this.$().height('');
+        }
+    }),
+
+    // when local validation fails there's no transition from failed->running
+    // so we want to restart the retry spinner animation to show something
+    // has happened when the button is clicked
+    _restartAnimation: task(function* () {
+        if (this.$('.retry-animated').length) {
+            // eslint-disable-next-line
+            let elem = this.$('.retry-animated')[0];
+            elem.classList.remove('retry-animated');
+            yield timeout(10);
+            elem.classList.add('retry-animated');
         }
     })
 });
