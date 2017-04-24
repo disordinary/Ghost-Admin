@@ -1,9 +1,13 @@
 /* Dropdowns
 /* ---------------------------------------------------------- */
 
+.ember-basic-dropdown-content {
+    z-index: 1100;
+}
+
 .dropdown {
     position: relative;
-    z-index: 1000;
+    z-index: 1100;
 }
 
 .dropdown-toggle:focus {
@@ -62,10 +66,16 @@
     transition: none;
 }
 
-.dropdown-menu i {
+.dropdown-menu svg {
     margin-right: 10px;
-    font-size: 14px;
+    height: 14px;
+    width: 14px;
     line-height: 1em;
+    fill: color(var(--darkgrey) lightness(+20%));
+}
+
+.dropdown-menu svg path {
+    stroke: color(var(--darkgrey) lightness(+20%));
 }
 
 @media (max-width: 500px) {
@@ -74,8 +84,8 @@
         padding: 7px 8px;
         font-size: 1.5rem;
     }
-    .dropdown-menu i {
-        font-size: 16px;
+    .dropdown-menu svg {
+        height: 16px;
     }
 }
 

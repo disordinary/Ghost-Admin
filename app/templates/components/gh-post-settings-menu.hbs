@@ -3,11 +3,13 @@
     <div class="{{if isViewingSubview 'settings-menu-pane-out-left' 'settings-menu-pane-in'}} settings-menu settings-menu-pane">
         <div class="settings-menu-header">
             <h4>Post Settings</h4>
-            <button class="close icon-x settings-menu-header-action" {{action "closeMenus"}}><span class="hidden">Close</span></button>
+            <button class="close settings-menu-header-action" {{action "closeMenus"}} data-test-close-settings-menu>
+                {{inline-svg "close"}}<span class="hidden">Close</span>
+            </button>
         </div>
         <div class="settings-menu-content">
             {{gh-image-uploader-with-preview
-                image=model.image
+                image=model.featureImage
                 text="Add post image"
                 update=(action "setCoverImage")
                 remove=(action "clearCoverImage")
@@ -17,35 +19,41 @@
                 <label for="url">Post URL</label>
                 {{#if model.isPublished}}
                 <a class="post-view-link" target="_blank" href="{{model.absoluteUrl}}">
-                    View post <i class="icon-external"></i>
+                    View post {{inline-svg "external"}}
                 </a>
                 {{else}}
                 <a class="post-view-link" target="_blank" href="{{model.previewUrl}}">
-                    Preview <i class="icon-external"></i>
+                    Preview {{inline-svg "external"}}
                 </a>
                 {{/if}}
 
-                <span class="input-icon icon-link">
+                <div class="gh-input-icon gh-icon-link">
+                    {{inline-svg "link"}}
                     {{gh-input slugValue class="post-setting-slug" id="url" name="post-setting-slug" focusOut=(action "updateSlug" slugValue) stopEnterKeyDownPropagation="true" update=(action (mut slugValue))}}
-                </span>
+                </div>
                 {{gh-url-preview slug=slugValue tagName="p" classNames="description"}}
             </div>
 
-            {{#gh-form-group errors=model.errors property="post-setting-date"}}
-                {{#if model.timeScheduled}}
-                    <label for="post-setting-date">Scheduled Date</label>
+            <div class="form-group">
+                {{#if (or model.isDraft model.isPublished model.pastScheduledTime)}}
+                    <label>Publish Date</label>
                 {{else}}
-                    <label for="post-setting-date">Publish Date</label>
+                    <label>Scheduled Date</label>
+                    <p>Use the publish menu to re-schedule</p>
                 {{/if}}
-                {{gh-datetime-input
-                    value=model.publishedAtUTC
-                    update=(action "setPublishedAtUTC")
-                    inputClass="post-setting-date"
-                    inputId="post-setting-date"
-                    inputName="post-setting-date"
+                {{gh-date-time-picker
+                    date=model.publishedAtBlogDate
+                    time=model.publishedAtBlogTime
+                    setDate=(action "setPublishedAtBlogDate")
+                    setTime=(action "setPublishedAtBlogTime")
+                    errors=model.errors
+                    dateErrorProperty="publishedAtBlogDate"
+                    timeErrorProperty="publishedAtBlogTime"
+                    maxDate='now'
+                    disabled=model.isScheduled
+                    static=true
                 }}
-                {{gh-error-message errors=model.errors property="post-setting-date"}}
-            {{/gh-form-group}}
+            </div>
 
             <div class="form-group">
                 <label for="tag-input">Tags</label>
@@ -65,7 +73,8 @@
             {{#unless session.user.isAuthor}}
             <div class="form-group for-select">
                 <label for="author-list">Author</label>
-                <span class="input-icon icon-user">
+                <span class="gh-input-icon gh-icon-user">
+                    {{inline-svg "user-circle"}}
                     <span class="gh-select" tabindex="0">
                     {{one-way-select
                         selectedAuthor
@@ -76,6 +85,7 @@
                         optionLabelPath="name"
                         update=(action "changeAuthor")
                     }}
+                    {{inline-svg "arrow-down-small"}}
                     </span>
                 </span>
             </div>
@@ -87,7 +97,7 @@
                         <b>Meta Data</b>
                         <span>Extra content for SEO and social media.</span>
                     </button>
-                    <i class="icon-arrow-right"></i>
+                     {{inline-svg "arrow-right"}}
                 {{/gh-tab}}
             </ul>
 
@@ -105,6 +115,10 @@
                 </label>
             </div>
 
+            {{#unless model.isNew}}
+                <button type="button" class="gh-btn gh-btn-link gh-btn-sm gh-btn-icon settings-menu-delete-button" {{action "deletePost"}}><span>{{inline-svg "trash"}} Delete Post</span></button>
+            {{/unless}}
+
             </form>
         </div>{{! .settings-menu-content }}
     </div>{{! .post-settings-menu }}
@@ -113,7 +127,7 @@
     {{#gh-tab-pane}}
         {{#if isViewingSubview}}
         <div class="settings-menu-header subview">
-            <button {{action "closeSubview"}} class="back icon-arrow-left settings-menu-header-action"><span class="hidden">Back</span></button>
+            <button {{action "closeSubview"}} class="back settings-menu-header-action">{{inline-svg "arrow-left"}}<span class="hidden">Back</span></button>
             <h4>Meta Data</h4>
             <div style="width:23px;">{{!flexbox space-between}}</div>
         </div>

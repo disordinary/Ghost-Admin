@@ -202,11 +202,10 @@
     cursor: default;
 }
 
-.package-downloads i {
+.package-downloads svg {
     margin-right: 5px;
-    font-size: 15px;
+    height: 15px;
 }
-
 
 .package-download-count {
     font-size: 13px;
@@ -298,11 +297,10 @@
     color: var(--darkgrey);
 }
 
-.package-controls-button i {
+.package-controls-button svg {
     margin-right: 5px;
     width: 11px;
     height: 11px;
-    font-size: 11px;
 }
 
 .package-disable {

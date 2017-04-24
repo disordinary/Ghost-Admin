@@ -14,8 +14,8 @@ export default Model.extend(ValidationEngine, {
     name: attr('string'),
     slug: attr('string'),
     email: attr('string'),
-    image: attr('string'),
-    cover: attr('string'),
+    profileImage: attr('string'),
+    coverImage: attr('string'),
     bio: attr('string'),
     website: attr('string'),
     location: attr('string'),
@@ -109,6 +109,8 @@ export default Model.extend(ValidationEngine, {
             // engine only clears the "validated proeprty"
             // TODO: clean up once we have a better validations library
             this.get('errors').remove('ne2Password');
+
+            return true;
         } catch (error) {
             this.get('notifications').showAPIError(error, {key: 'user.change-password'});
         }

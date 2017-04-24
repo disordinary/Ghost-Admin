@@ -12,7 +12,9 @@ import {invalidateSession, authenticateSession} from 'ghost-admin/tests/helpers/
 import Mirage from 'ember-cli-mirage';
 import sinon from 'sinon';
 import testSelector from 'ember-test-selectors';
-import {titleRendered} from '../helpers/editor-helpers';
+import {titleRendered, replaceTitleHTML} from '../helpers/editor-helpers';
+import moment from 'moment';
+
 describe('Acceptance: Editor', function() {
     let application;
 
@@ -24,55 +26,47 @@ describe('Acceptance: Editor', function() {
         destroyApp(application);
     });
 
-    it('redirects to signin when not authenticated', function () {
+    it('redirects to signin when not authenticated', async function () {
         server.create('user'); // necesary for post-author association
         server.create('post');
 
         invalidateSession(application);
-        visit('/editor/1');
+        await visit('/editor/1');
 
-        andThen(function() {
-            expect(currentURL(), 'currentURL').to.equal('/signin');
-        });
+        expect(currentURL(), 'currentURL').to.equal('/signin');
     });
 
-    it('does not redirect to team page when authenticated as author', function () {
+    it('does not redirect to team page when authenticated as author', async function () {
         let role = server.create('role', {name: 'Author'});
         server.create('user', {roles: [role], slug: 'test-user'});
         server.create('post');
 
         authenticateSession(application);
-        visit('/editor/1');
+        await visit('/editor/1');
 
-        andThen(() => {
-            expect(currentURL(), 'currentURL').to.equal('/editor/1');
-        });
+        expect(currentURL(), 'currentURL').to.equal('/editor/1');
     });
 
-    it('does not redirect to team page when authenticated as editor', function () {
+    it('does not redirect to team page when authenticated as editor', async function () {
         let role = server.create('role', {name: 'Editor'});
         server.create('user', {roles: [role], slug: 'test-user'});
         server.create('post');
 
         authenticateSession(application);
-        visit('/editor/1');
+        await visit('/editor/1');
 
-        andThen(() => {
-            expect(currentURL(), 'currentURL').to.equal('/editor/1');
-        });
+        expect(currentURL(), 'currentURL').to.equal('/editor/1');
     });
 
-    it('displays 404 when post does not exist', function () {
+    it('displays 404 when post does not exist', async function () {
         let role = server.create('role', {name: 'Editor'});
         server.create('user', {roles: [role], slug: 'test-user'});
 
         authenticateSession(application);
-        visit('/editor/1');
+        await visit('/editor/1');
 
-        andThen(() => {
-            expect(currentPath()).to.equal('error404');
-            expect(currentURL()).to.equal('/editor/1');
-        });
+        expect(currentPath()).to.equal('error404');
+        expect(currentURL()).to.equal('/editor/1');
     });
 
     describe('when logged in', function () {
@@ -84,461 +78,355 @@ describe('Acceptance: Editor', function() {
             return authenticateSession(application);
         });
 
-        it('renders the editor correctly, PSM Publish Date and Save Button', function () {
-            server.createList('post', 2);
-            let plusTenMinPacific = moment().tz('Pacific/Kwajalein').add(10, 'minutes').format('DD MMM YY @ HH:mm').toString();
-            let plusTwoMinPacific = moment().tz('Pacific/Kwajalein').add(2, 'minutes').format('DD MMM YY @ HH:mm').toString();
+        it('renders the editor correctly, PSM Publish Date and Save Button', async function () {
+            let [post1] = server.createList('post', 2);
+            let futureTime = moment().tz('Etc/UTC').add(10, 'minutes');
 
             // post id 1 is a draft, checking for draft behaviour now
-            visit('/editor/1');
+            await visit('/editor/1');
 
-            andThen(() => {
-                expect(currentURL(), 'currentURL')
-                    .to.equal('/editor/1');
-            });
+            expect(currentURL(), 'currentURL')
+                .to.equal('/editor/1');
 
-            // should error, if the date input is in a wrong format
-            fillIn('input[name="post-setting-date"]', 'testdate');
-            triggerEvent('input[name="post-setting-date"]', 'blur');
+            // open post settings menu
+            await click(testSelector('psm-trigger'));
 
-            andThen(() => {
-                expect(find('.ember-view.response').text().trim(), 'inline error response for invalid date')
-                    .to.equal('Published Date must be a valid date with format: DD MMM YY @ HH:mm (e.g. 6 Dec 14 @ 15:00)');
-            });
+            // should error, if the publish time is in the wrong format
+            await fillIn(testSelector('date-time-picker-time-input'), 'foo');
+            await triggerEvent(testSelector('date-time-picker-time-input'), 'blur');
+
+            expect(find(testSelector('date-time-picker-error')).text().trim(), 'inline error response for invalid time')
+                .to.equal('Must be in format: "15:00"');
+
+            // should error, if the publish time is in the future
+            // NOTE: date must be selected first, changing the time first will save
+            // with the new time
+            await datepickerSelect(testSelector('date-time-picker-datepicker'), moment.tz('Etc/UTC'));
+            await fillIn(testSelector('date-time-picker-time-input'), futureTime.format('HH:mm'));
+            await triggerEvent(testSelector('date-time-picker-time-input'), 'blur');
+
+            expect(find(testSelector('date-time-picker-error')).text().trim(), 'inline error response for future time')
+                .to.equal('Must be in the past');
+
+            // closing the PSM will reset the invalid date/time
+            await click(testSelector('close-settings-menu'));
+            await click(testSelector('psm-trigger'));
+
+            expect(
+                find(testSelector('date-time-picker-error')).text().trim(),
+                'date picker error after closing PSM'
+            ).to.equal('');
+
+            expect(
+                find(testSelector('date-time-picker-date-input')).val(),
+                'PSM date value after closing with invalid date'
+            ).to.equal(moment(post1.publishedAt).format('MM/DD/YYYY'));
+
+            expect(
+                find(testSelector('date-time-picker-time-input')).val(),
+                'PSM time value after closing with invalid date'
+            ).to.equal(moment(post1.publishedAt).format('HH:mm'));
 
             // saves the post with the new date
-            fillIn('input[name="post-setting-date"]', '10 May 16 @ 10:00');
-            triggerEvent('input[name="post-setting-date"]', 'blur');
-            // saving
-            click('.gh-btn.gh-btn-sm.js-publish-button');
+            let validTime = moment('2017-04-09 12:00');
+            await fillIn(testSelector('date-time-picker-time-input'), validTime.format('HH:mm'));
+            await triggerEvent(testSelector('date-time-picker-time-input'), 'blur');
+            await datepickerSelect(testSelector('date-time-picker-datepicker'), validTime);
 
-            andThen(() => {
-                expect(find('input[name="post-setting-date"]').val(), 'date after saving')
-                    .to.equal('10 May 16 @ 10:00');
-            });
-
-            // should not do anything if the input date is not different
-            fillIn('input[name="post-setting-date"]', '10 May 16 @ 10:00');
-            triggerEvent('input[name="post-setting-date"]', 'blur');
-
-            andThen(() => {
-                expect(find('input[name="post-setting-date"]').val(), 'date didn\'t change')
-                    .to.equal('10 May 16 @ 10:00');
-            });
+            // hide psm
+            await click(testSelector('psm-trigger'));
 
             // checking the flow of the saving button for a draft
-            andThen(() => {
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'no red button expected')
-                    .to.be.false;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button')
-                    .to.equal('Save Draft');
-                expect(find('.post-save-draft').hasClass('active'), 'highlights the default active button state for a draft')
-                    .to.be.true;
-            });
+            expect(
+                find(testSelector('publishmenu-trigger')).text().trim(),
+                'draft publish button text'
+            ).to.equal('Publish');
+
+            expect(
+                find(testSelector('editor-post-status')).text().trim(),
+                'draft status text'
+            ).to.equal('Draft');
 
             // click on publish now
-            click('.post-save-publish a');
+            await click(testSelector('publishmenu-trigger'));
 
-            andThen(() => {
-                expect(find('.post-save-publish').hasClass('active'), 'highlights the selected active button state')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'red button to change from draft to published')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button after click on \'publish now\'')
-                    .to.equal('Publish Now');
-            });
+            expect(
+                find(testSelector('publishmenu-draft')),
+                'draft publish menu is shown'
+            ).to.exist;
 
             // Publish the post
-            click('.gh-btn.gh-btn-sm.js-publish-button');
+            await click(testSelector('publishmenu-save'));
 
-            andThen(() => {
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button after publishing')
-                    .to.equal('Update Post');
-                expect(find('.post-save-publish').hasClass('active'), 'highlights the default active button state for a published post')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'no red button expected')
-                    .to.be.false;
-            });
+            expect(
+                find(testSelector('publishmenu-published')),
+                'publish menu is shown after draft published'
+            ).to.exist;
+
+            expect(
+                find(testSelector('editor-post-status')).text().trim(),
+                'post status updated after draft published'
+            ).to.equal('Published');
 
             // post id 2 is a published post, checking for published post behaviour now
-            visit('/editor/2');
+            await visit('/editor/2');
 
-            andThen(() => {
-                expect(currentURL(), 'currentURL').to.equal('/editor/2');
-                expect(find('input[name="post-setting-date"]').val()).to.equal('19 Dec 15 @ 16:25');
-            });
-
-            // should reset the date if the input field is blank
-            fillIn('input[name="post-setting-date"]', '');
-            triggerEvent('input[name="post-setting-date"]', 'blur');
-
-            andThen(() => {
-                expect(find('input[name="post-setting-date"]').val(), 'empty date input')
-                .to.equal('');
-            });
-
-            // saving
-            click('.gh-btn.gh-btn-sm.js-publish-button');
-
-            andThen(() => {
-                expect(find('input[name="post-setting-date"]').val(), 'date value restored')
-                .to.equal('19 Dec 15 @ 16:25');
-            });
+            expect(currentURL(), 'currentURL').to.equal('/editor/2');
+            expect(find(testSelector('date-time-picker-date-input')).val()).to.equal('12/19/2015');
+            expect(find(testSelector('date-time-picker-time-input')).val()).to.equal('16:25');
 
             // saves the post with a new date
-            fillIn('input[name="post-setting-date"]', '10 May 16 @ 10:00');
-            triggerEvent('input[name="post-setting-date"]', 'blur');
+            await datepickerSelect(testSelector('date-time-picker-datepicker'), moment('2016-05-10 10:00'));
+            await fillIn(testSelector('date-time-picker-time-input'), '10:00');
+            await triggerEvent(testSelector('date-time-picker-time-input'), 'blur');
             // saving
-            click('.gh-btn.gh-btn-sm.js-publish-button');
-
-            andThen(() => {
-                expect(find('input[name="post-setting-date"]').val(), 'new date after saving')
-                    .to.equal('10 May 16 @ 10:00');
-            });
+            await click(testSelector('publishmenu-trigger'));
+            await click(testSelector('publishmenu-save'));
 
             // go to settings to change the timezone
-            visit('/settings/general');
-            click(testSelector('toggle-timezone'));
+            await visit('/settings/general');
+            await click(testSelector('toggle-timezone'));
 
-            andThen(() => {
-                expect(currentURL(), 'currentURL for settings')
-                    .to.equal('/settings/general');
-                expect(find('#activeTimezone option:selected').text().trim(), 'default timezone')
-                    .to.equal('(GMT) UTC');
-                // select a new timezone
-                find('#activeTimezone option[value="Pacific/Kwajalein"]').prop('selected', true);
-            });
+            expect(currentURL(), 'currentURL for settings')
+                .to.equal('/settings/general');
+            expect(find('#activeTimezone option:selected').text().trim(), 'default timezone')
+                .to.equal('(GMT) UTC');
 
-            triggerEvent('#activeTimezone', 'change');
+            // select a new timezone
+            find('#activeTimezone option[value="Pacific/Kwajalein"]').prop('selected', true);
+
+            await triggerEvent('#activeTimezone', 'change');
             // save the settings
-            click('.gh-btn.gh-btn-blue');
+            await click('.gh-btn.gh-btn-blue');
 
-            andThen(() => {
-                expect(find('#activeTimezone option:selected').text().trim(), 'new timezone after saving')
-                    .to.equal('(GMT +12:00) International Date Line West');
-            });
+            expect(find('#activeTimezone option:selected').text().trim(), 'new timezone after saving')
+                .to.equal('(GMT +12:00) International Date Line West');
 
             // and now go back to the editor
-            visit('/editor/2');
+            await visit('/editor/2');
 
-            andThen(() => {
-                expect(currentURL(), 'currentURL in editor')
-                    .to.equal('/editor/2');
-                expect(find('input[name="post-setting-date"]').val(), 'date with blog timezone')
-                    .to.equal('10 May 16 @ 22:00');
-            });
+            expect(currentURL(), 'currentURL in editor')
+                .to.equal('/editor/2');
 
-            // should not do anything if the input date is not different
-            fillIn('input[name="post-setting-date"]', '10 May 16 @ 22:00');
-            triggerEvent('input[name="post-setting-date"]', 'blur');
+            expect(
+                find(testSelector('date-time-picker-date-input')).val(),
+                'date after timezone change'
+            ).to.equal('05/10/2016');
 
-            andThen(() => {
-                expect(find('input[name="post-setting-date"]').val(), 'date didn\'t change')
-                    .to.equal('10 May 16 @ 22:00');
-            });
+            expect(
+                find(testSelector('date-time-picker-time-input')).val(),
+                'time after timezone change'
+            ).to.equal('22:00');
 
-            // click on unpublish
-            click('.post-save-draft a');
+            // unpublish
+            await click(testSelector('publishmenu-trigger'));
+            await click(testSelector('publishmenu-unpublished-option'));
+            await click(testSelector('publishmenu-save'));
 
-            andThen(() => {
-                expect(find('.post-save-draft').hasClass('active'), 'highlights the active button state for a draft')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'red button to change from published to draft')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for post to unpublish')
-                    .to.equal('Unpublish');
-            });
+            expect(
+                find(testSelector('publishmenu-draft')),
+                'draft menu is shown after unpublished'
+            ).to.exist;
 
-            // Unpublish the post
-            click('.gh-btn.gh-btn-sm.js-publish-button');
+            expect(
+                find(testSelector('editor-post-status')).text().trim(),
+                'post status updated after unpublished'
+            ).to.equal('Draft');
 
-            andThen(() => {
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for draft')
-                    .to.equal('Save Draft');
-                expect(find('.post-save-draft').hasClass('active'), 'highlights the default active button state for a draft')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'no red button expected')
-                    .to.be.false;
-            });
+            // schedule post
+            await click(testSelector('publishmenu-cancel'));
+            await click(testSelector('publishmenu-trigger'));
 
-            // Set the publish date 2 minute to the future to find an error message
-            fillIn('input[name="post-setting-date"]', plusTwoMinPacific);
-            triggerEvent('input[name="post-setting-date"]', 'blur');
+            let newFutureTime = moment.tz('Pacific/Kwajalein').add(10, 'minutes');
+            await click(testSelector('publishmenu-scheduled-option'));
+            await datepickerSelect(`${testSelector('publishmenu-draft')} ${testSelector('date-time-picker-datepicker')}`, newFutureTime);
+            await click(testSelector('publishmenu-save'));
+            await click(testSelector('publishmenu-cancel'));
 
-            andThen(() => {
-                andThen(() => {
-                    expect(find('.ember-view.response').text().trim(), 'inline error response for invalid date in future')
-                        .to.equal('Must be at least 2 minutes from now.');
+            expect(
+                find(testSelector('publishmenu-scheduled')),
+                'publish menu is not shown after closed'
+            ).to.not.exist;
+
+            expect(
+                find(testSelector('publishmenu-trigger')).text().trim(),
+                'scheduled publish button text'
+            ).to.equal('Scheduled');
+
+            expect(
+                find(testSelector('editor-post-status')).text().trim(),
+                'scheduled status text'
+            ).to.equal('Scheduled');
+
+            // expect countdown to show warning, that post will be published in x minutes
+            expect(find(testSelector('schedule-countdown')).text().trim(), 'notification countdown')
+                .to.contain('Post will be published in');
+
+            // unschedule
+            await click(testSelector('publishmenu-trigger'));
+            await click(testSelector('publishmenu-draft-option'));
+            await click(testSelector('publishmenu-save'));
+            await click(testSelector('publishmenu-cancel'));
+
+            expect(
+                find(testSelector('publishmenu-trigger')).text().trim(),
+                'publish button text after unschedule'
+            ).to.equal('Publish');
+
+            expect(
+                find(testSelector('editor-post-status')).text().trim(),
+                'status text after unschedule'
+            ).to.equal('Draft');
+
+            expect(
+                find(testSelector('schedule-countdown')),
+                'scheduled countdown after unschedule'
+            ).to.not.exist;
+        });
+
+        it('handles validation errors when scheduling', async function () {
+            server.put('/posts/:id/', function () {
+                return new Mirage.Response(422, {}, {
+                    errors: [{
+                        errorType: 'ValidationError',
+                        message: 'Error test'
+                    }]
                 });
             });
 
-            // Set the publish date into the future (best to have it 10 minutes from now in the future)
-            fillIn('input[name="post-setting-date"]', plusTenMinPacific);
-            triggerEvent('input[name="post-setting-date"]', 'blur');
-
-            andThen(() => {
-                expect(find('label[for="post-setting-date"]').text().trim(), 'label changes to \'Scheduled Date\'')
-                    .to.equal('Scheduled Date');
-            });
-
-            // click on 'Schedule Post'
-            click('.post-save-schedule a');
-
-            // button should show 'schedule post'
-            andThen(() => {
-                expect(find('.post-save-schedule').hasClass('active'), 'highlights the active button state for a draft')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'red button to change from published to draft')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for post to schedule')
-                    .to.equal('Schedule Post');
-            });
-
-            // click on schedule post and save
-            click('.gh-btn.gh-btn-sm.js-publish-button');
-
-            andThen(() => {
-                // Dropdown menu should be 'Update Post' and 'Unschedule'
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for scheduled post')
-                    .to.equal('Update Post');
-                expect(find('.post-save-schedule').hasClass('active'), 'highlights the default active button state for a scheduled post')
-                    .to.be.true;
-                expect(find('.post-save-draft').text().trim(), 'not active option should say \'Unschedule\'')
-                    .to.equal('Unschedule');
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'no red button expected')
-                    .to.be.false;
-                // expect countdown to show warning, that post will be published in x minutes
-                expect(find('.gh-notification.gh-notification-schedule').text().trim(), 'notification countdown')
-                    .to.contain('Post will be published in');
-            });
-
-            // click on 'Unschedule'
-            click('.post-save-draft a');
-
-            andThen(() => {
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button to unscheduled post')
-                    .to.equal('Unschedule');
-                expect(find('.post-save-draft').hasClass('active'), 'highlights the default active button state for a scheduled post')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'red button expected due to status change')
-                    .to.be.true;
-            });
-
-            // click on unschedule post and save
-            click('.gh-btn.gh-btn-sm.js-publish-button');
-
-            andThen(() => {
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for a draft')
-                    .to.equal('Save Draft');
-                expect(find('.post-save-draft').hasClass('active'), 'highlights the default active button state for a draft post')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'red button expected due to status change')
-                    .to.be.false;
-                // expect no countdown notification after unscheduling
-                expect(find('.gh-notification.gh-notification-schedule').text().trim(), 'notification countdown')
-                    .to.equal('');
-            });
-        });
-
-        it('handles validation errors when scheduling', function () {
-            let saveCount = 0;
-
-            server.put('/posts/:id/', function ({posts}, {params}) {
-                // we have three saves occurring here :-(
-                // 1. Auto-save of draft
-                // 2. Change of publish time
-                // 3. Pressing the Schedule button
-                saveCount++;
-                if (saveCount === 3) {
-                    return new Mirage.Response(422, {}, {
-                        errors: [{
-                            errorType: 'ValidationError',
-                            message: 'Error test'
-                        }]
-                    });
-                } else {
-                    let attrs = this.normalizedRequestAttrs();
-
-                    return posts.find(params.id).update(attrs);
-                }
-            });
-
             let post = server.create('post', 1);
-            let plusTenMin = moment().add(10, 'minutes').format('DD MMM YY @ HH:mm').toString();
+            let plusTenMin = moment().utc().add(10, 'minutes');
 
-            visit(`/editor/${post.id}`);
+            await visit(`/editor/${post.id}`);
 
-            fillIn('input[name="post-setting-date"]', plusTenMin);
-            triggerEvent('input[name="post-setting-date"]', 'blur');
-            click('.post-save-schedule a');
-            click('.gh-btn.gh-btn-sm.js-publish-button');
+            await click(testSelector('publishmenu-trigger'));
+            await click(testSelector('publishmenu-scheduled-option'));
+            await datepickerSelect(`${testSelector('publishmenu-draft')} ${testSelector('date-time-picker-datepicker')}`, plusTenMin);
+            await fillIn(`${testSelector('publishmenu-draft')} ${testSelector('date-time-picker-time-input')}`, plusTenMin.format('HH:mm'));
+            await triggerEvent(`${testSelector('publishmenu-draft')} ${testSelector('date-time-picker-time-input')}`, 'blur');
+            await click(testSelector('publishmenu-save'));
 
-            andThen(() => {
-                expect(
-                    find('.gh-alert').length,
-                    'number of alerts after failed schedule'
-                ).to.equal(1);
+            expect(
+                find('.gh-alert').length,
+                'number of alerts after failed schedule'
+            ).to.equal(1);
 
-                expect(
-                    find('.gh-alert').text(),
-                    'alert text after failed schedule'
-                ).to.match(/Scheduling failed: Error test/);
-            });
+            expect(
+                find('.gh-alert').text(),
+                'alert text after failed schedule'
+            ).to.match(/Saving failed: Error test/);
         });
 
-        it('handles title validation errors correctly', function () {
+        it('handles title validation errors correctly', async function () {
             server.createList('post', 1);
 
             // post id 1 is a draft, checking for draft behaviour now
-            visit('/editor/1');
+            await visit('/editor/1');
 
-            andThen(() => {
-                expect(currentURL(), 'currentURL')
-                    .to.equal('/editor/1');
-            });
+            expect(currentURL(), 'currentURL')
+                .to.equal('/editor/1');
 
-            andThen(() => {
-                titleRendered();
-            });
+            titleRendered();
 
-            andThen(() => {
-                let title = find('#gh-editor-title div');
-                title.html(Array(160).join('a'));
-            });
+            let title = find('#gh-editor-title div');
+            title.html(Array(160).join('a'));
 
-            andThen(() => {
-                click('.gh-btn.gh-btn-sm.js-publish-button');
-            });
+            await click(testSelector('publishmenu-trigger'));
+            await click(testSelector('publishmenu-save'));
 
-            andThen(() => {
-                expect(
-                    find('.gh-alert').length,
-                    'number of alerts after invalid title'
-                ).to.equal(1);
+            expect(
+                find('.gh-alert').length,
+                'number of alerts after invalid title'
+            ).to.equal(1);
 
-                expect(
-                    find('.gh-alert').text(),
-                    'alert text after invalid title'
-                ).to.match(/Title cannot be longer than 150 characters/);
-            });
+            expect(
+                find('.gh-alert').text(),
+                'alert text after invalid title'
+            ).to.match(/Title cannot be longer than 150 characters/);
         });
 
-        it('renders first countdown notification before scheduled time', function () {
+        it('inserts a placeholder if the title is blank', async function () {
+            server.createList('post', 1);
+
+            // post id 1 is a draft, checking for draft behaviour now
+            await visit('/editor/1');
+
+            expect(currentURL(), 'currentURL')
+                .to.equal('/editor/1');
+
+            titleRendered();
+
+            let title = find('#gh-editor-title div');
+            expect(title.data('placeholder')).to.equal('Your Post Title');
+            expect(title.hasClass('no-content')).to.be.false;
+            await title.html('');
+
+            expect(title.hasClass('no-content')).to.be.true;
+            await title.html('test');
+
+            expect(title.hasClass('no-content')).to.be.false;
+        });
+
+        it('removes HTML from the title.', async function () {
+            server.createList('post', 1);
+
+            // post id 1 is a draft, checking for draft behaviour now
+            await visit('/editor/1');
+
+            expect(currentURL(), 'currentURL')
+                .to.equal('/editor/1');
+
+            titleRendered();
+
+            let title = find('#gh-editor-title div');
+            await replaceTitleHTML('<div>TITLE&nbsp;&#09;&nbsp;&thinsp;&ensp;&emsp;TEST</div>&nbsp;');
+            expect(title.html()).to.equal('TITLE      TEST ');
+        });
+
+        it('renders first countdown notification before scheduled time', async function () {
             let clock = sinon.useFakeTimers(moment().valueOf());
-            let compareDate = moment().tz('Etc/UTC').add(4, 'minutes').format('DD MMM YY @ HH:mm').toString();
+            let compareDate = moment().tz('Etc/UTC').add(4, 'minutes');
+            let compareDateString = compareDate.format('MM/DD/YYYY');
+            let compareTimeString = compareDate.format('HH:mm');
             server.create('post', {publishedAt: moment.utc().add(4, 'minutes'), status: 'scheduled'});
             server.create('setting', {activeTimezone: 'Europe/Dublin'});
             clock.restore();
 
-            visit('/editor/1');
+            await visit('/editor/1');
 
-            andThen(() => {
-                expect(currentURL(), 'currentURL')
-                    .to.equal('/editor/1');
-                expect(find('input[name="post-setting-date"]').val(), 'scheduled date')
-                    .to.equal(compareDate);
-                // Dropdown menu should be 'Update Post' and 'Unschedule'
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for scheduled post')
-                    .to.equal('Update Post');
-                expect(find('.post-save-schedule').hasClass('active'), 'highlights the default active button state for a scheduled post')
-                    .to.be.true;
-                expect(find('.post-save-draft').text().trim(), 'not active option should say \'Unschedule\'')
-                    .to.equal('Unschedule');
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'no red button expected')
-                    .to.be.false;
-                // expect countdown to show warning, that post will be published in x minutes
-                expect(find('.gh-notification.gh-notification-schedule').text().trim(), 'notification countdown')
-                    .to.contain('Post will be published in');
-            });
+            expect(currentURL(), 'currentURL')
+                .to.equal('/editor/1');
+            expect(find(testSelector('date-time-picker-date-input')).val(), 'scheduled date')
+                .to.equal(compareDateString);
+            expect(find(testSelector('date-time-picker-time-input')).val(), 'scheduled time')
+                .to.equal(compareTimeString);
+            // Dropdown menu should be 'Update Post' and 'Unschedule'
+            expect(find(testSelector('publishmenu-trigger')).text().trim(), 'text in save button for scheduled post')
+                .to.equal('Scheduled');
+            // expect countdown to show warning, that post will be published in x minutes
+            expect(find(testSelector('schedule-countdown')).text().trim(), 'notification countdown')
+                .to.contain('Post will be published in');
         });
 
-        it('only shows option to unschedule post 2 minutes before scheduled time', function () {
-            let clock = sinon.useFakeTimers(moment().valueOf());
-            server.create('post', {publishedAt: moment.utc().add(2, 'minutes'), status: 'scheduled'});
-            server.create('setting', {activeTimezone: 'Europe/Dublin'});
-            clock.restore();
-
-            visit('/editor/1');
-
-            andThen(() => {
-                // Save button should say 'Unschedule'
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for scheduled post in status freeze mode')
-                    .to.equal('Unschedule');
-                // expect countdown to show warning, that post will be published in x minutes
-                expect(find('.gh-notification.gh-notification-schedule').text().trim(), 'notification countdown')
-                    .to.contain('Post will be published in');
-                // no dropdown menu
-                expect(find('.gh-btn.gh-btn-sm.dropdown-toggle').hasClass('active'), 'no dropdown menu')
-                    .to.be.false;
-            });
-        });
-
-        it.skip('lets user unschedule the post shortly before scheduled date', function () {
-            let clock = sinon.useFakeTimers(moment().valueOf());
-            server.create('post', {publishedAt: moment.utc().add(1, 'minute'), status: 'scheduled'});
-            server.create('setting', {activeTimezone: 'Europe/Dublin'});
-            clock.restore();
-
-            visit('/editor/1');
-
-            // change some text
-            fillIn('.markdown-editor', 'Let\'s make some markdown changes');
-
-            andThen(() => {
-                // Save button should say 'Unschedule'
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for scheduled post in status freeze mode')
-                    .to.equal('Unschedule');
-                // expect countdown to show warning, that post will be published in x minutes
-                expect(find('.gh-notification.gh-notification-schedule').text().trim(), 'notification countdown')
-                    .to.contain('Post will be published in');
-                // no dropdown menu
-                expect(find('.gh-btn.gh-btn-sm.dropdown-toggle').hasClass('active'), 'no dropdown menu')
-                    .to.be.false;
-            });
-
-            // click on Unschedule
-            click('.gh-btn.gh-btn-sm.js-publish-button');
-
-            andThen(() => {
-                expect(find('.markdown-editor').val(), 'changed text in markdown editor')
-                    .to.equal('Let\'s make some markdown changes');
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').text().trim(), 'text in save button for a draft')
-                    .to.equal('Save Draft');
-                expect(find('.post-save-draft').hasClass('active'), 'highlights the default active button state for a draft post')
-                    .to.be.true;
-                expect(find('.gh-btn.gh-btn-sm.js-publish-button').hasClass('gh-btn-red'), 'red button expected due to status change')
-                    .to.be.false;
-                // expect no countdown notification after unscheduling
-                expect(find('.gh-notification.gh-notification-schedule').text().trim(), 'notification countdown')
-                    .to.equal('');
-            });
-        });
-
-        it('shows author list and allows switching of author in PSM', function () {
+        it('shows author list and allows switching of author in PSM', async function () {
             server.create('post', {authorId: 1});
             let role = server.create('role', {name: 'Author'});
             let author = server.create('user', {name: 'Waldo', roles: [role]});
 
-            visit('/editor/1');
+            await visit('/editor/1');
 
-            andThen(() => {
-                expect(currentURL(), 'currentURL')
-                    .to.equal('/editor/1');
-            });
+            expect(currentURL(), 'currentURL')
+                .to.equal('/editor/1');
 
-            click('button.post-settings');
+            await click('button.post-settings');
 
-            andThen(() => {
-                expect(find('select[name="post-setting-author"]').val()).to.equal('1');
-                expect(find('select[name="post-setting-author"] option[value="2"]')).to.be.ok;
-            });
+            expect(find('select[name="post-setting-author"]').val()).to.equal('1');
+            expect(find('select[name="post-setting-author"] option[value="2"]')).to.be.ok;
 
-            fillIn('select[name="post-setting-author"]', '2');
+            await fillIn('select[name="post-setting-author"]', '2');
 
-            andThen(() => {
-                expect(find('select[name="post-setting-author"]').val()).to.equal('2');
-                expect(server.db.posts[0].authorId).to.equal(author.id);
-            });
+            expect(find('select[name="post-setting-author"]').val()).to.equal('2');
+            expect(server.db.posts[0].authorId).to.equal(author.id);
         });
     });
 });
